@@ -17,4 +17,4 @@ Stop the blue environment.
 If there are any issues with the green environment, the load balancer can be switched back to the blue environment to revert the deployment.
 
 License
-This project is licensed under the MIT License.
+This project is licensed under the MIT License.# blue_green_deployment_using_cicd_pipeline
