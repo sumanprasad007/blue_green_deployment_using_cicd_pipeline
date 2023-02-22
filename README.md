@@ -1,113 +1,20 @@
-# blue-green
+Blue-Green Deployment
+This repository contains a script for a Blue-Green Deployment, which is a technique for releasing software with minimal downtime.
 
+Installation
+The user-data script in this repository installs Apache and creates an index.html file in the /var/www/html directory. It also installs the CodeDeploy agent and sets up auto-update. The script is designed to run on Ubuntu or Amazon Linux.
 
-# PFB the User-Data
+To use this script, copy the contents of the user-data file and paste them into the user-data field when launching an EC2 instance.
 
-#!/bin/bash -xe
+Usage
+To use the Blue-Green Deployment technique, you need two sets of identical infrastructure, one of which is currently live (the blue environment), and the other which will become the new environment (the green environment).
 
-yum update -y
+The steps for the deployment are as follows:
 
-# Apache install and index.html file creation
+Start up the green environment and run any tests to ensure it is working correctly.
+Switch the load balancer to route traffic to the green environment.
+Stop the blue environment.
+If there are any issues with the green environment, the load balancer can be switched back to the blue environment to revert the deployment.
 
-yum install httpd -y
-echo 'Hello' >> /var/www/html/index.html
-systemctl restart httpd
-
-## Code Deploy Agent Bootstrap Script##
-
-
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-AUTOUPDATE=false
-
-function installdep(){
-
-if [ ${PLAT} = "ubuntu" ]; then
-
-  apt-get -y update
-  # Satisfying even ubuntu older versions.
-  apt-get -y install jq awscli ruby2.0 || apt-get -y install jq awscli ruby
-
-
-
-elif [ ${PLAT} = "amz" ]; then
-  yum -y update
-  yum install -y aws-cli ruby jq
-
-fi
-
-}
-
-function platformize(){
-
-#Linux OS detection#
- if hash lsb_release; then
-   echo "Ubuntu server OS detected"
-   export PLAT="ubuntu"
-
-
-elif hash yum; then
-  echo "Amazon Linux detected"
-  export PLAT="amz"
-
- else
-   echo "Unsupported release"
-   exit 1
-
- fi
-}
-
-
-function execute(){
-
-if [ ${PLAT} = "ubuntu" ]; then
-
-  cd /tmp/
-  wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install
-  chmod +x ./install
-
-  if ./install auto; then
-    echo "Instalation completed"
-      if ! ${AUTOUPDATE}; then
-            echo "Disabling Auto Update"
-            sed -i '/@reboot/d' /etc/cron.d/codedeploy-agent-update
-            chattr +i /etc/cron.d/codedeploy-agent-update
-            rm -f /tmp/install
-      fi
-    exit 0
-  else
-    echo "Instalation script failed, please investigate"
-    rm -f /tmp/install
-    exit 1
-  fi
-
-elif [ ${PLAT} = "amz" ]; then
-
-  cd /tmp/
-  wget https://aws-codedeploy-${REGION}.s3.amazonaws.com/latest/install
-  chmod +x ./install
-
-    if ./install auto; then
-      echo "Instalation completed"
-        if ! ${AUTOUPDATE}; then
-            echo "Disabling auto update"
-            sed -i '/@reboot/d' /etc/cron.d/codedeploy-agent-update
-            chattr +i /etc/cron.d/codedeploy-agent-update
-            rm -f /tmp/install
-        fi
-      exit 0
-    else
-      echo "Instalation script failed, please investigate"
-      rm -f /tmp/install
-      exit 1
-    fi
-
-else
-  echo "Unsupported platform ''${PLAT}''"
-fi
-
-}
-
-platformize
-installdep
-REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r ".region")
-execute
+License
+This project is licensed under the MIT License.
